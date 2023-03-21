@@ -65,7 +65,7 @@ class CourierAi:
         self.randomAi()
 
     def randomAi(self):
-        TICKS_TO_REACH_TARGET_MAGIC_NUMBER = 25+random.randint(0,75)
+        TICKS_TO_REACH_TARGET_MAGIC_NUMBER = random.randint(25, 75)
         if self.courierMovement.ticksOfMovementLeft == 0:
             neighbours = self.map.adj[self.currentNode]
             # print(neighbours)
