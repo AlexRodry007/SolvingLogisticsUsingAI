@@ -1,10 +1,5 @@
 import networkx as nx
 import random
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-
-import Courier
 
 
 class MapCreator:
@@ -25,9 +20,7 @@ class MapCreator:
         if amountOfNodes is None:
             return MapCreator.createRandomMapWithSetEdges(amountOfEdges, EDGE_CHANCE_MAGIC_NUMBER)
 
-        print("TO DO: Add function to create random map with set both edges and nodes. "
-              "\nCurrently if both edges and nodes are set, only nodes are used")
-        return MapCreator.createRandomMapWithSetNodes(amountOfNodes, EDGE_CHANCE_MAGIC_NUMBER)
+        return MapCreator.createRandomMapWithSetNodesAndEdges(amountOfNodes, amountOfEdges)
 
     @staticmethod
     def createRandomMapWithSetNodes(amountOfNodes, edgeChance):
@@ -64,36 +57,34 @@ class MapCreator:
                 currentAmountOfEdges += 1
         return map
 
+    @staticmethod
+    def createRandomMapWithSetNodesAndEdges(amountOfNodes, amountOfEdges):
+        map = nx.Graph()
+        map.add_node(0)
+        for newNode in range(1, amountOfNodes):
+            map.add_node(newNode)
+            map.add_edge(newNode, random.randint(0, newNode-1))
+        for _ in range(amountOfNodes-1, amountOfEdges):
+            firstNode = random.randint(0, amountOfNodes-1)
+            allNodes = list(range(0, amountOfNodes))
+            firstNodeNeighbors = list(map.adj[firstNode].keys())
+            allNodes.pop(firstNode)
+            notNeighbors = [i for i in allNodes if i not in firstNodeNeighbors]
+            map.add_edge(firstNode, notNeighbors[random.randint(0, len(notNeighbors)-1)])
+        return map
 
-class Field:
-    def __init__(self, map):
-        self.map = map
-        self.passiveCouriers = list()
-
-    def addCourier(self, courierName, aiName, node):
-        self.passiveCouriers.append((courierName, aiName, node))
-
-
-class FieldVisualiser:
-    def __init__(self, field):
-        self.field = field
-        self.passiveCouriers = self.field.passiveCouriers
-        self.activeCouriers = list()
-
-    def visualiseField(self):
-        fig, ax = plt.subplots()
-        pos = nx.spring_layout(self.field.map)
-        nx.draw_networkx(self.field.map, pos)
-        for passiveCourier in self.passiveCouriers:
-            self.activeCouriers.append(Courier.Courier(passiveCourier[0], passiveCourier[1],
-                                                       self.field.map, pos, passiveCourier[2], ax))
-
-        def tickField(frame):
-            for courier in self.activeCouriers:
-                courier.iterateCourier()
-
-        ani = animation.FuncAnimation(fig=fig, func=tickField, frames=60, interval=25)
-        plt.show()
+    @staticmethod
+    def randomiseWeights(graph, minWeight, maxWeight):
+        for edge in list(graph.edges.keys()):
+            weight = random.randint(minWeight, maxWeight)
+            if weight <= (minWeight + (maxWeight-minWeight) / 3):
+                color = 'green'
+            elif weight <= (minWeight + 2*(maxWeight - minWeight) / 3):
+                color = 'yellow'
+            else:
+                color = 'red'
+            graph[edge[0]][edge[1]]['weight'] = weight
+            graph[edge[0]][edge[1]]['color'] = color
 
 
 

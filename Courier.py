@@ -10,7 +10,6 @@ class CourierMovement:
         self.xVelocity = 0
         self.yVelocity = 0
         self.ticksOfMovementLeft = 0
-
         self.ax = pyplotAx
         self.dot, = self.ax.plot(self.x, self.y, 'ro', zorder=5)
 
@@ -39,35 +38,35 @@ class CourierMovement:
 
 
 class Courier:
-    def __init__(self, courierName, aiName, map, pos, currentNode, pyplotAx):
+    def __init__(self, courierName, aiName, pos, currentNode, pyplotAx, hivemind):
         self.name = courierName
         self.courierMovement = CourierMovement(pos[currentNode][0], pos[currentNode][1], pyplotAx)
-        self.courierAi = CourierAi(aiName, self.courierMovement, map, pos, currentNode)
+        self.courierAi = CourierAi(aiName, self, currentNode, hivemind)
+        self.carryingService = None
 
     def iterateCourier(self):
         self.courierAi.iterateAi()
         self.courierMovement.iterateMovement()
 
+    def noPathAndMovement(self):
+        return len(self.courierAi.courierPath) == 0 and self.courierMovement.ticksOfMovementLeft == 0
+
 
 class CourierAi:
 
-    def __init__(self, name, courierMovement, map, pos, currentNode):
+    def __init__(self, name, courier, currentNode, hivemind):
         self.name = name
-        self.courierMovement = courierMovement
-        self.pos = pos
+        self.courier = courier
         self.currentNode = currentNode
-        self.map = map
-
-    def startMovementToNode(self, targetNode, ticksToReachTarget):
-        self.courierMovement.startMovementToCoord(self.pos[targetNode][0], self.pos[targetNode][1], ticksToReachTarget)
+        self.currentTargetNode = currentNode
+        self.finalTargetNode = None
+        self.hivemind = hivemind
+        self.courierPath = ()
 
     def iterateAi(self):
-        self.randomAi()
+        if self.courier.courierMovement.ticksOfMovementLeft == 0:
+            self.currentNode = self.currentTargetNode
+        self.hiveMindAi()
 
-    def randomAi(self):
-        TICKS_TO_REACH_TARGET_MAGIC_NUMBER = random.randint(25, 75)
-        if self.courierMovement.ticksOfMovementLeft == 0:
-            neighbours = self.map.adj[self.currentNode]
-            # print(neighbours)
-            self.currentNode = list(neighbours.keys())[random.randint(0, len(neighbours)-1)]
-            self.startMovementToNode(self.currentNode, TICKS_TO_REACH_TARGET_MAGIC_NUMBER)
+    def hiveMindAi(self):
+        self.hivemind.getCommands(self.courier)
