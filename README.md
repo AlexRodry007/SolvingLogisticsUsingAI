@@ -4,6 +4,9 @@ This is a project that aims at solving some problem of logistics using neural ne
 * [General info](#general-info)
 * [Technologies](#technologies)
 * [Setup](#setup)
+* [Illustration](#illustration)
+* [How to change stuff](#how-to-change-stuff)
+* [Project Status](#project-status)
 ## General info
 Currently this project creates a random graph called "map" and ten "couriers". 
 Those couriers move from node to node randomly, at random speeds independently from one-another.
@@ -33,11 +36,17 @@ If everything is set up correctly, it should look somewhat like this:
 ![image](https://user-images.githubusercontent.com/55761576/226570569-deab1092-d360-4473-8fef-192a320b1d7d.png)
 ## How to change stuff
 ### Change amount of nodes
-To change amount of nodes that are in a graph, in main.py find line that says (line 4 at the time of writing)
+To change amount of nodes that are in a graph, in main.py find line that says:
 ```
 field = Map.Field(Map.MapCreator.createRandomMap(amountOfNodes=50))
 ```
-And the number you want instead of 50
+And the set number you want instead of 50
+### Change amount of edges
+While you currently can't change amount of edges directly, you can change their frequency. To do that, in map.py, find line that says:
+```
+EDGE_CHANCE_MAGIC_NUMBER = 5
+```
+And set the percentage chance of creating an edge, instead of 5 (currently from 0 to 100 only)
 ### Change amount of couriers
 At the time of writing, the program creates 10 couriers at nodes 1 to 10, represented by the folowing code:
 ```
@@ -54,6 +63,14 @@ field.addCourier("Jessie", "RandomAi", 10)
 ```
 To change amount of couriers you can delete or add lines 
 ```
-addCourier([Courier Name], [Ai Name], [Starting Node])
+field.addCourier([Courier Name], [Ai Name], [Starting Node])
 ```
 First two arguments currently do nothing.
+### Change courier speed
+To change amount of ticks that courier needs to reach it's target, in courier.py find line that says:
+```
+TICKS_TO_REACH_TARGET_MAGIC_NUMBER = random.randint(25, 75)
+```
+First number is minimal ticks needed to reach the target, second is maximal ticks needed.
+## Project Status
+The project is in an early stages of development
