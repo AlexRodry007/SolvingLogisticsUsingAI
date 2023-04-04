@@ -8,8 +8,10 @@ This is a project that aims at solving some problem of logistics using neural ne
 * [How to change stuff](#how-to-change-stuff)
 * [Project Status](#project-status)
 ## General info
-Currently this project creates a random graph called "map" and ten "couriers". 
-Those couriers move from node to node randomly, at random speeds independently from one-another.
+Currently this project creates a random graph called "map", a few "couriers" and logistical "hubs".
+Guring the runtime every node has a chance of becoming a "request".
+Couriers move to random logistical hub, and then fulfill random request.
+To the left will be some profiling data.
 ## Technologies
 Project is created with:
 * Pillow	9.4.0	
@@ -33,7 +35,7 @@ Project is created with:
 To run this project, install it locally, then open using IDE of your choice (https://www.jetbrains.com/pycharm/ for example), and run 'main'.
 ## Illustration
 If everything is set up correctly, it should look somewhat like this:
-![image](https://user-images.githubusercontent.com/55761576/228178925-8e2851ce-bb83-451b-8f02-269a97cd1437.png)
+![image](https://user-images.githubusercontent.com/55761576/229723249-2a567b6b-9284-4a3a-8313-53a6d85c056c.png)
 ## How to change stuff
 ### Change amount of nodes
 To change amount of nodes that are in a graph, in main.py find line that says:
@@ -48,26 +50,17 @@ field = Field.Field(Map.MapCreator.createRandomMap(amountOfNodes=50, amountOfEdg
 ```
 And the set number you want instead of 75
 ### Change amount of couriers
-At the time of writing, the program creates 10 couriers at nodes 1 to 10, represented by the folowing code:
+To change amount of couriers that are on a map, in main.py find line that says:
 ```
-field.addPassiveCourier("Alex", "random to random to random", 1)
-field.addPassiveCourier("Berta", "random to random to random", 2)
-field.addPassiveCourier("Charlie", "random to random to random", 3)
-field.addPassiveCourier("Daisy", "random to random to random", 4)
-field.addPassiveCourier("Eve", "random to random to random", 5)
-field.addPassiveCourier("Frank", "random to random to random", 6)
-field.addPassiveCourier("Greg", "random to random to random", 7)
-field.addPassiveCourier("Harold", "random to random to random", 8)
-field.addPassiveCourier("Ivan", "random to random to random", 9)
-field.addPassiveCourier("Jessie", "random to random to random", 10)
+field.addCouriers('Clone Trooper', "random to random to random", 4)
 ```
-To change amount of couriers you can delete or add lines 
+And set the number you wnat isntead of 4
+### Change AI Type
+To change amount of couriers that are on a map, in main.py find line that says:
 ```
-field.addCourier([Courier Name], [Ai Name], [Starting Node])
+field.addCouriers('Clone Trooper', "random to random to random", 4)
 ```
-First argument currently does nothing.
-You can read about second argument lower
-### AI Names
+And change the "random to random to random" to one of the folowing:
 * **"random"** - courier will move to the random neighbors every time
 * **"complex random"** - courier will choose random node and move to it
 * **"random to random"** - courier will go to the random request point, delivering them with no need to resupply
