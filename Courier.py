@@ -11,13 +11,16 @@ class CourierMovement:
         self.yVelocity = 0
         self.ticksOfMovementLeft = 0
         self.ax = pyplotAx
-        self.dot, = self.ax.plot(self.x, self.y, 'ro', zorder=5)
+        self.animated = True
+        self.dot, = self.ax.plot(self.x, self.y, marker='o', color='black', zorder=5, lw=5,
+                                 markersize=5, markeredgewidth=3)
 
     def moveTo(self, xCoord, yCoord):
         self.x = xCoord
         self.y = yCoord
-        self.dot.set_xdata(xCoord)
-        self.dot.set_ydata(yCoord)
+        if self.animated:
+            self.dot.set_xdata(xCoord)
+            self.dot.set_ydata(yCoord)
 
     def startMovementToCoord(self, xTargetCoord, yTargetCoord, ticksToReachTarget):
         self.xVelocity = (xTargetCoord-self.x)/ticksToReachTarget
@@ -62,11 +65,15 @@ class CourierAi:
         self.finalTargetNode = None
         self.hivemind = hivemind
         self.courierPath = ()
+        self.freeze = 0
 
     def iterateAi(self):
-        if self.courier.courierMovement.ticksOfMovementLeft == 0:
-            self.currentNode = self.currentTargetNode
-        self.hiveMindAi()
+        if self.freeze <= 0:
+            if self.courier.courierMovement.ticksOfMovementLeft == 0:
+                self.currentNode = self.currentTargetNode
+            self.hiveMindAi()
+        else:
+            self.freeze -= 1
 
     def hiveMindAi(self):
         self.hivemind.getCommands(self.courier)

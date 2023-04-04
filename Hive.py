@@ -32,16 +32,17 @@ class Hivemind:
         nodesContainingRequests = [activeRequest.node for activeRequest in
                                    self.fieldVisualiser.activeRequests]
         onTheRequest = courier.courierAi.currentNode in nodesContainingRequests
-        providedService = False
+        providedService = -1
         if onTheRequest:
             request = self.fieldVisualiser.activeRequests[
                 nodesContainingRequests.index(courier.courierAi.currentNode)]
             providedService = request.receiveService(courier.carryingService)
-            if providedService:
+            if providedService != -1:
                 request.deleteRequest()
                 courier.carryingService = None
                 self.fieldVisualiser.activeRequests.remove(request)
-        return providedService
+                courier.courierAi.freeze += providedService
+        return providedService != -1
 
     def getService(self, courier, service):
         nodesContainingHubs = [activeHub.node for activeHub in
@@ -51,9 +52,10 @@ class Hivemind:
         if onTheHub:
             hub = self.fieldVisualiser.activeHubs[
                 nodesContainingHubs.index(courier.courierAi.currentNode)]
-            gotService = hub.getService(service)
+            gotService, ticksItTook = hub.getService(service)
             if gotService:
                 courier.carryingService = service
+                courier.courierAi.freeze += ticksItTook
         return gotService
 
     def randomHivemind(self, courier):
@@ -72,45 +74,46 @@ class Hivemind:
         self.moveToFinalNode(courier)
 
     def randomToRandomHivemind(self, courier):
-        if courier.noPathAndMovement():
-            self.provideService(courier)
-            courier.carryingService = "Test"
-            courier.courierAi.finalTargetNode = [activeRequest.node
-                                                 for activeRequest
-                                                 in self.fieldVisualiser.activeRequests][
-                random.randint(0, len(self.fieldVisualiser.activeRequests) - 1)]
-        self.moveToFinalNode(courier)
+        if len(self.fieldVisualiser.activeRequests) != 0:
+            if courier.noPathAndMovement():
+                self.provideService(courier)
+                courier.carryingService = "Test"
+                courier.courierAi.finalTargetNode = [activeRequest.node
+                                                     for activeRequest
+                                                     in self.fieldVisualiser.activeRequests][
+                    random.randint(0, len(self.fieldVisualiser.activeRequests) - 1)]
+            self.moveToFinalNode(courier)
 
     def randomToRandomToRandomHivemind(self, courier):
-        if courier.carryingService is None and courier.noPathAndMovement():
-            if self.getService(courier, "Test"):
-                courier.courierAi.finalTargetNode = [activeRequest.node
-                                                     for activeRequest
-                                                     in self.fieldVisualiser.activeRequests][
-                    random.randint(0, len(self.fieldVisualiser.activeRequests) - 1)]
-            else:
-                courier.courierAi.finalTargetNode = [activeHub.node
-                                                     for activeHub
-                                                     in self.fieldVisualiser.activeHubs][
-                    random.randint(0, len(self.fieldVisualiser.activeHubs) - 1)]
-        if courier.carryingService is not None and courier.noPathAndMovement():
-            if self.provideService(courier):
-                courier.courierAi.finalTargetNode = [activeHub.node
-                                                     for activeHub
-                                                     in self.fieldVisualiser.activeHubs][
-                    random.randint(0, len(self.fieldVisualiser.activeHubs) - 1)]
-            else:
-                courier.courierAi.finalTargetNode = [activeRequest.node
-                                                     for activeRequest
-                                                     in self.fieldVisualiser.activeRequests][
-                    random.randint(0, len(self.fieldVisualiser.activeRequests) - 1)]
-        self.moveToFinalNode(courier)
+        if len(self.fieldVisualiser.activeRequests) != 0:
+            if courier.carryingService is None and courier.noPathAndMovement():
+                if self.getService(courier, "Test"):
+                    courier.courierAi.finalTargetNode = [activeRequest.node
+                                                         for activeRequest
+                                                         in self.fieldVisualiser.activeRequests][
+                        random.randint(0, len(self.fieldVisualiser.activeRequests) - 1)]
+                else:
+                    courier.courierAi.finalTargetNode = [activeHub.node
+                                                         for activeHub
+                                                         in self.fieldVisualiser.activeHubs][
+                        random.randint(0, len(self.fieldVisualiser.activeHubs) - 1)]
+            if courier.carryingService is not None and courier.noPathAndMovement():
+                if self.provideService(courier):
+                    courier.courierAi.finalTargetNode = [activeHub.node
+                                                         for activeHub
+                                                         in self.fieldVisualiser.activeHubs][
+                        random.randint(0, len(self.fieldVisualiser.activeHubs) - 1)]
+                else:
+                    courier.courierAi.finalTargetNode = [activeRequest.node
+                                                         for activeRequest
+                                                         in self.fieldVisualiser.activeRequests][
+                        random.randint(0, len(self.fieldVisualiser.activeRequests) - 1)]
+            self.moveToFinalNode(courier)
 
     def buildPathDijkstra(self, courier):
-        if courier.noPathAndMovement():
-            courier.courierAi.courierPath = (
-                list(networkx.dijkstra_path(self.fieldVisualiser.field.map, courier.courierAi.currentNode,
-                                            courier.courierAi.finalTargetNode)))
+        courier.courierAi.courierPath = (
+            list(networkx.dijkstra_path(self.fieldVisualiser.field.map, courier.courierAi.currentNode,
+                                        courier.courierAi.finalTargetNode)))
 
     def followPath(self, courier):
         if courier.courierMovement.ticksOfMovementLeft == 0:
@@ -118,5 +121,6 @@ class Hivemind:
             self.directMoveToTarget(courier)
 
     def moveToFinalNode(self, courier):
-        self.buildPathDijkstra(courier)
+        if courier.noPathAndMovement():
+            self.buildPathDijkstra(courier)
         self.followPath(courier)
