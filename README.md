@@ -33,43 +33,49 @@ Project is created with:
 To run this project, install it locally, then open using IDE of your choice (https://www.jetbrains.com/pycharm/ for example), and run 'main'.
 ## Illustration
 If everything is set up correctly, it should look somewhat like this:
-![image](https://user-images.githubusercontent.com/55761576/226570569-deab1092-d360-4473-8fef-192a320b1d7d.png)
+![image](https://user-images.githubusercontent.com/55761576/228178925-8e2851ce-bb83-451b-8f02-269a97cd1437.png)
 ## How to change stuff
 ### Change amount of nodes
 To change amount of nodes that are in a graph, in main.py find line that says:
 ```
-field = Map.Field(Map.MapCreator.createRandomMap(amountOfNodes=50))
+field = Field.Field(Map.MapCreator.createRandomMap(amountOfNodes=50, amountOfEdges=75))
 ```
 And the set number you want instead of 50
 ### Change amount of edges
-While you currently can't change amount of edges directly, you can change their frequency. To do that, in map.py, find line that says:
+To change amount of edges that are in a graph, in main.py find line that says:
 ```
-EDGE_CHANCE_MAGIC_NUMBER = 5
+field = Field.Field(Map.MapCreator.createRandomMap(amountOfNodes=50, amountOfEdges=75))
 ```
-And set the percentage chance of creating an edge, instead of 5 (currently from 0 to 100 only)
+And the set number you want instead of 75
 ### Change amount of couriers
 At the time of writing, the program creates 10 couriers at nodes 1 to 10, represented by the folowing code:
 ```
-field.addCourier("Alex", "RandomAi", 1)
-field.addCourier("Berta", "RandomAi", 2)
-field.addCourier("Charlie", "RandomAi", 3)
-field.addCourier("Daisy", "RandomAi", 4)
-field.addCourier("Eve", "RandomAi", 5)
-field.addCourier("Frank", "RandomAi", 6)
-field.addCourier("Greg", "RandomAi", 7)
-field.addCourier("Harold", "RandomAi", 8)
-field.addCourier("Ivan", "RandomAi", 9)
-field.addCourier("Jessie", "RandomAi", 10)
+field.addPassiveCourier("Alex", "random to random to random", 1)
+field.addPassiveCourier("Berta", "random to random to random", 2)
+field.addPassiveCourier("Charlie", "random to random to random", 3)
+field.addPassiveCourier("Daisy", "random to random to random", 4)
+field.addPassiveCourier("Eve", "random to random to random", 5)
+field.addPassiveCourier("Frank", "random to random to random", 6)
+field.addPassiveCourier("Greg", "random to random to random", 7)
+field.addPassiveCourier("Harold", "random to random to random", 8)
+field.addPassiveCourier("Ivan", "random to random to random", 9)
+field.addPassiveCourier("Jessie", "random to random to random", 10)
 ```
 To change amount of couriers you can delete or add lines 
 ```
 field.addCourier([Courier Name], [Ai Name], [Starting Node])
 ```
-First two arguments currently do nothing.
+First argument currently does nothing.
+You can read about second argument lower
+### AI Names
+* **"random"** - courier will move to the random neighbors every time
+* **"complex random"** - courier will choose random node and move to it
+* **"random to random"** - courier will go to the random request point, delivering them with no need to resupply
+* **"random to random to random"** - courier will go to the random hub, picking up service and delivering it to the random request
 ### Change courier speed
-To change amount of ticks that courier needs to reach it's target, in courier.py find line that says:
+To change amount of ticks that couriers needs to reach their target, in main.py find line that says:
 ```
-TICKS_TO_REACH_TARGET_MAGIC_NUMBER = random.randint(25, 75)
+Map.MapCreator.randomiseWeights(field.map, 25, 100)
 ```
 First number is minimal ticks needed to reach the target, second is maximal ticks needed.
 ## Project Status
