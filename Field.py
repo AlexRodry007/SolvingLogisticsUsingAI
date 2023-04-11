@@ -1,3 +1,5 @@
+import time
+
 import networkx as nx
 from matplotlib import pyplot as plt, animation as animation
 import random
@@ -102,6 +104,7 @@ class FieldVisualiser:
         hivemind = Hive.Hivemind(self)
         profiler.startingText()
 
+        self.ax.set_visible(False)
 
         # ADHOC manual hubs and requests D
         # for _ in range(10):
@@ -114,15 +117,22 @@ class FieldVisualiser:
             self.addHub(passiveHub[0], passiveHub[1])
 
         for passiveCourier in self.passiveCouriers:
-            self.activeCouriers.append(Courier.Courier(passiveCourier[0], passiveCourier[1], self.pos, passiveCourier[2],
-                                                       self.ax, hivemind))
+            self.activeCouriers.append(
+                Courier.Courier(passiveCourier[0], passiveCourier[1], self.pos, passiveCourier[2],
+                                self.ax, hivemind))
 
-        cid = self.fig.canvas.mpl_connect('button_press_event', profiler.onclick)
+        changedCouriers = []
+
+        def init_tick():
+            everything = []
+            everything.extend(self.ax.get_children())
+            everything.extend(self.profilingAx.get_children())
+            return everything
 
         @Profiling.timeTracker(Profiler=profiler)
         def tickField(frame):
             for courier in self.activeCouriers:
-                courier.iterateCourier()
+                changedCouriers.append(courier.iterateCourier())
             self.generateRequests()
             profiler.tickProfiling()
 
@@ -130,7 +140,16 @@ class FieldVisualiser:
             # if len(self.activeRequests) < 10:
             #    self.addRandomRequest()
             # ADHOC U
+
         delayCap = 0
-        ani = animation.FuncAnimation(fig=self.fig, func=tickField, frames=1, cache_frame_data=False,
-                                      interval=delayCap, repeat_delay=delayCap)
+        ani = animation.FuncAnimation(fig=self.fig,
+                                      func=tickField,
+                                      frames=1,
+                                      # init_func=None,
+                                      interval=delayCap,
+                                      repeat_delay=delayCap,
+                                      blit=False,
+                                      repeat=True)
+        # self.fig.canvas.flush_events()
+        # self.fig.canvas.draw()
         plt.show()

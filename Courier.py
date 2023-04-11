@@ -13,7 +13,7 @@ class CourierMovement:
         self.ax = pyplotAx
         self.animated = True
         self.dot, = self.ax.plot(self.x, self.y, marker='o', color='black', zorder=5, lw=5,
-                                 markersize=5, markeredgewidth=3)
+                                 markersize=5, markeredgewidth=3, animated=False)
 
     def moveTo(self, xCoord, yCoord):
         self.x = xCoord
@@ -38,6 +38,7 @@ class CourierMovement:
             self.ticksOfMovementLeft -= 1
         else:
             self.stopMovementToCoord()
+        return self.dot
 
 
 class Courier:
@@ -49,7 +50,7 @@ class Courier:
 
     def iterateCourier(self):
         self.courierAi.iterateAi()
-        self.courierMovement.iterateMovement()
+        return self.courierMovement.iterateMovement()
 
     def noPathAndMovement(self):
         return len(self.courierAi.courierPath) == 0 and self.courierMovement.ticksOfMovementLeft == 0

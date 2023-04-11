@@ -9,8 +9,8 @@ class Request:
         self.x = pos[node][0]
         self.y = pos[node][1]
         self.ax = ax
-        self.dot, = self.ax.plot(self.x, self.y, marker='2', color='#E0E0E0', zorder=5, lw=5,
-                                 markersize=20, markeredgewidth=3)
+        self.dot, = self.ax.plot(self.x, self.y, marker='o', color='#848ac4', zorder=0, lw=5,
+                                 markersize=23, markeredgewidth=3)
 
     def receiveService(self, receivedService):
         if receivedService == self.serviceRequest:
