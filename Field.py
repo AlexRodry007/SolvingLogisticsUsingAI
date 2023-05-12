@@ -50,12 +50,17 @@ class FieldVisualiser:
         self.passiveHubs = self.field.passiveHubs
         self.activeCouriers = list()
         self.activeRequests = list()
+        self.totalReceivedRequests = 0
         self.activeHubs = list()
         self.ax = None
         self.pos = None
         self.fig = None
         self.axes = None
         self.profilingAx = None
+
+    def receiveRequest(self, request):
+        self.activeRequests.remove(request)
+        self.totalReceivedRequests += 1
 
     def addRequest(self, node, serviceRequest):
         self.activeRequests.append(Requests.Request(node, serviceRequest, self.pos, self.ax))
@@ -104,7 +109,6 @@ class FieldVisualiser:
         hivemind = Hive.Hivemind(self)
         profiler.startingText()
 
-        self.ax.set_visible(False)
 
         # ADHOC manual hubs and requests D
         # for _ in range(10):
@@ -141,6 +145,9 @@ class FieldVisualiser:
             #    self.addRandomRequest()
             # ADHOC U
 
+
+
+
         delayCap = 0
         ani = animation.FuncAnimation(fig=self.fig,
                                       func=tickField,
@@ -152,4 +159,5 @@ class FieldVisualiser:
                                       repeat=True)
         # self.fig.canvas.flush_events()
         # self.fig.canvas.draw()
+
         plt.show()
