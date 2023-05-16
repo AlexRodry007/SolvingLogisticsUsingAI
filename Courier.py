@@ -4,52 +4,68 @@ import random
 
 class CourierMovement:
 
-    def __init__(self, xCoord, yCoord, pyplotAx):
-        self.x = xCoord
-        self.y = yCoord
-        self.xVelocity = 0
-        self.yVelocity = 0
+    def __init__(self, xCoord=None, yCoord=None, pyplotAx=None):
         self.ticksOfMovementLeft = 0
-        self.ax = pyplotAx
-        self.animated = True
-        self.dot, = self.ax.plot(self.x, self.y, marker='o', color='black', zorder=5, lw=5,
-                                 markersize=5, markeredgewidth=3, animated=False)
+
+        if xCoord is None or yCoord is None or pyplotAx is None:
+            self.animated = False
+        else:
+            self.animated = True
+            self.x = xCoord
+            self.y = yCoord
+            self.xVelocity = 0
+            self.yVelocity = 0
+            self.ax = pyplotAx
+            self.dot, = self.ax.plot(self.x, self.y, marker='o', color='black', zorder=5, lw=5,
+                                     markersize=5, markeredgewidth=3, animated=False)
 
     def moveTo(self, xCoord, yCoord):
-        self.x = xCoord
-        self.y = yCoord
         if self.animated:
+            self.x = xCoord
+            self.y = yCoord
             self.dot.set_xdata(xCoord)
             self.dot.set_ydata(yCoord)
 
-    def startMovementToCoord(self, xTargetCoord, yTargetCoord, ticksToReachTarget):
-        self.xVelocity = (xTargetCoord-self.x)/ticksToReachTarget
-        self.yVelocity = (yTargetCoord-self.y)/ticksToReachTarget
+    def startMovementToCoord(self, xTargetCoord=None, yTargetCoord=None, ticksToReachTarget=0):
+        if self.animated:
+            self.xVelocity = (xTargetCoord-self.x)/ticksToReachTarget
+            self.yVelocity = (yTargetCoord-self.y)/ticksToReachTarget
         self.ticksOfMovementLeft = ticksToReachTarget
 
     def stopMovementToCoord(self):
-        self.xVelocity = 0
-        self.yVelocity = 0
+        if self.animated:
+            self.xVelocity = 0
+            self.yVelocity = 0
         self.ticksOfMovementLeft = 0
 
     def iterateMovement(self):
         if self.ticksOfMovementLeft > 0:
-            self.moveTo(self.x+self.xVelocity, self.y+self.yVelocity)
+            if self.animated:
+                self.moveTo(self.x+self.xVelocity, self.y+self.yVelocity)
             self.ticksOfMovementLeft -= 1
         else:
             self.stopMovementToCoord()
-        return self.dot
+        if self.animated:
+            return self.dot
+        else:
+            if self.ticksOfMovementLeft == 0:
+                return False
+            else:
+                return True
 
 
 class Courier:
-    def __init__(self, courierName, aiName, pos, currentNode, pyplotAx, hivemind):
+    def __init__(self, courierName, aiName, pos=None, currentNode=0, pyplotAx=None, hivemind=None):
         self.name = courierName
-        self.courierMovement = CourierMovement(pos[currentNode][0], pos[currentNode][1], pyplotAx)
+        if pos is None or pyplotAx is None:
+            self.courierMovement = CourierMovement()
+        else:
+            self.courierMovement = CourierMovement(pos[currentNode][0], pos[currentNode][1], pyplotAx)
         self.courierAi = CourierAi(aiName, self, currentNode, hivemind)
         self.carryingService = None
 
-    def iterateCourier(self):
-        self.courierAi.iterateAi()
+    def iterateCourier(self, action=None):
+        self.courierAi.iterateAi(action)
         return self.courierMovement.iterateMovement()
 
     def noPathAndMovement(self):
@@ -68,13 +84,13 @@ class CourierAi:
         self.courierPath = ()
         self.freeze = 0
 
-    def iterateAi(self):
+    def iterateAi(self, action=None):
         if self.freeze <= 0:
             if self.courier.courierMovement.ticksOfMovementLeft == 0:
                 self.currentNode = self.currentTargetNode
-            self.hiveMindAi()
+            self.hiveMindAi(action)
         else:
             self.freeze -= 1
 
-    def hiveMindAi(self):
-        self.hivemind.getCommands(self.courier)
+    def hiveMindAi(self, action=None):
+        self.hivemind.getCommands(self.courier, action)

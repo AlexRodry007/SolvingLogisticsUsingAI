@@ -2,6 +2,7 @@ import Courier
 import random
 import networkx
 import copy
+import numpy as np
 
 
 class Hivemind:
@@ -9,7 +10,7 @@ class Hivemind:
         self.fieldVisualiser = fieldVisualiser
         self.allShortestPaths = self.calculateAllShortestPaths()
 
-    def getCommands(self, courier):
+    def getCommands(self, courier, action=None):
         if courier.courierAi.name == 'random':
             self.randomHivemind(courier)
         if courier.courierAi.name == 'moveToNode test':
@@ -23,16 +24,23 @@ class Hivemind:
             self.randomToRandomToRandomHivemind(courier)
         if courier.courierAi.name == "simple analytical":
             self.simpleAnalyticalHivemind(courier)
-            pass
+        if courier.courierAi.name == "ai":
+            return self.aiHivemind(courier, action)
 
     def directMoveToTarget(self, courier):
         if courier.courierAi.currentNode != courier.courierAi.currentTargetNode:
-            courier.courierMovement.startMovementToCoord(
-                self.fieldVisualiser.pos[courier.courierAi.currentTargetNode][0],
-                self.fieldVisualiser.pos[courier.courierAi.currentTargetNode][1],
-                self.fieldVisualiser.field.map[courier.courierAi.currentNode][
-                    courier.courierAi.currentTargetNode]
-                ['weight'])
+            if courier.courierMovement.animated:
+                courier.courierMovement.startMovementToCoord(
+                    self.fieldVisualiser.pos[courier.courierAi.currentTargetNode][0],
+                    self.fieldVisualiser.pos[courier.courierAi.currentTargetNode][1],
+                    self.fieldVisualiser.field.map[courier.courierAi.currentNode][
+                        courier.courierAi.currentTargetNode]
+                    ['weight'])
+            else:
+                courier.courierMovement.startMovementToCoord(
+                    ticksToReachTarget=self.fieldVisualiser.field.map[courier.courierAi.currentNode][
+                        courier.courierAi.currentTargetNode]
+                    ['weight'])
 
     def provideService(self, courier):
         nodesContainingRequests = [activeRequest.node for activeRequest in
@@ -131,6 +139,58 @@ class Hivemind:
                     courier.courierAi.finalTargetNode = self.getClosestRequestWithTag(currentNode, "Test")
             self.moveToFinalNode(courier)
 
+    def aiHivemind(self, courier, action):
+        if type(action) is tuple:
+            action = action[0]
+        if courier.carryingService is None and courier.noPathAndMovement():
+            self.getService(courier, "Test")
+            courier.courierAi.finalTargetNode = action
+            self.moveToFinalNode(courier)
+            return False
+        if courier.carryingService is not None and courier.noPathAndMovement():
+            self.provideService(courier)
+            courier.courierAi.finalTargetNode = action
+            self.moveToFinalNode(courier)
+            return False
+        self.moveToFinalNode(courier)
+        return True
+
+    @staticmethod
+    def complexAnalyticalAgent(observation):
+        splited = [list(array) for array in np.array_split(observation, 5)]
+        currentNode = splited[0].index(0)
+        if splited[2][currentNode] == 1:
+            possibleTargets = list()
+            request = 0
+            for isRequest in splited[1]:
+                if splited[4][request] == 0 and isRequest == 1:
+                    possibleTargets.append(request)
+                request += 1
+            if not possibleTargets:
+                return currentNode
+            target = possibleTargets[0]
+            closest = splited[0][target]
+
+            for possibleTarget in possibleTargets:
+                if splited[0][possibleTarget] < closest:
+                    closest = splited[0][possibleTarget]
+                    target = possibleTarget
+            return target
+        else:
+            possibleTargets = list()
+            hub = 0
+            for isHub in splited[2]:
+                if isHub == 1:
+                    possibleTargets.append(hub)
+                hub += 1
+            target = possibleTargets[0]
+            closest = splited[0][target]
+            for possibleTarget in possibleTargets:
+                if splited[0][possibleTarget] < closest:
+                    closest = splited[0][possibleTarget]
+                    target = possibleTarget
+            return target
+
     def buildPathDijkstra(self, courier):
         courier.courierAi.courierPath = (
             list(networkx.dijkstra_path(self.fieldVisualiser.field.map, courier.courierAi.currentNode,
@@ -183,3 +243,12 @@ class Hivemind:
         for node in allRequestNodes:
             requestsWithLength[node] = self.allShortestPaths[fromNode][0][node]
         return min(requestsWithLength, key=requestsWithLength.get)
+
+
+class AnalyticalAi:
+    def __init__(self, aiName):
+        self.aiName = aiName
+
+    def choose_action(self, observation):
+        if self.aiName == "complex analytical":
+            return Hivemind.complexAnalyticalAgent(observation)
