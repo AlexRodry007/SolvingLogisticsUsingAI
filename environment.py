@@ -11,10 +11,14 @@ class Environment:
                  weightsMin=25, weightsMax=100,
                  hubsAmount=2, hubsServices=None,
                  courierName="Clone Trooper", couriersAmount=2,
-                 chanceToSpawnRequest=1, outOf=3000, requestServices=None):
+                 chanceToSpawnRequest=1, outOf=1500, requestServices=None, addCarryingBit=False,
+                 oneStepBehind=False):
         self.seed = seed
         self.amountOfNodes = amountOfNodes
+        self.addCarryingBit = addCarryingBit
         self.observationSpace = amountOfNodes*5
+        if self.addCarryingBit:
+            self.observationSpace += 1
         self.amountOfEdges = amountOfEdges
         self.weightsMin = weightsMin
         self.weightsMax = weightsMax
@@ -27,6 +31,7 @@ class Environment:
         self.requestServices = requestServices
         self.field = None
         self.fieldCalculator = None
+        self.oneStepBehind = oneStepBehind
 
     def reset(self):
         if self.seed is not None:
@@ -45,12 +50,12 @@ class Environment:
 
         self.field.addRandomPassiveHubs(self.hubsAmount, hubsServices)
 
-        self.field.addCouriers(self.courierName, "ai", self.couriersAmount)
+        self.field.addCouriers(self.courierName, "ai", self.couriersAmount, oneStepBehind=self.oneStepBehind)
 
         mainRequestGenerator = Requests.RequestGenerator(self.chanceToSpawnRequest, self.outOf, requestServices)
         self.field.addRequestGenerator(mainRequestGenerator)
 
-        self.fieldCalculator = Field.FieldCalculator(self.field)
+        self.fieldCalculator = Field.FieldCalculator(self.field, self.addCarryingBit)
         self.fieldCalculator.start()
         # ADHOC down
         self.fieldCalculator.addRandomRequest()

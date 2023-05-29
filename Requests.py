@@ -6,6 +6,7 @@ class Request:
         self.serviceRequest = serviceRequest
         self.ticksToServe = ticksToServe
         self.node = node
+        self.delayedDeletion = False
         if node is None or pos is None or ax is None:
             self.animated = False
         else:

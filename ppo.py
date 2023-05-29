@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import torch
 import torch as T
 import torch.nn as nn
 import torch.optim as optim
@@ -51,9 +52,9 @@ class PPOMemory:
 
 class ActorNetwork(nn.Module):
     def __init__(self, n_actions, input_dims, alpha,
-                 fc1_dims=2048, fc2_dims=2048, chkpt_dir='tmp/ppo'): # tmp/ppo perm/firstSave
+                 fc1_dims=2048, fc2_dims=2048, entropyRegularizationMagnitude=0, chkpt_dir='tmp/ppo'):
         super(ActorNetwork, self).__init__()
-
+        self.entropyRegularizationMagnitude = entropyRegularizationMagnitude
         self.checkpoint_file = os.path.join(chkpt_dir, 'actor_torch_ppo')
         self.actor = nn.Sequential(
             nn.Linear(*input_dims, fc1_dims),
@@ -69,8 +70,16 @@ class ActorNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, state):
+        # print(state)
         dist = self.actor(state)
+        # print(dist)
+        # print(len(dist))
+        if len(dist)==1:
+            dist = self.entropyRegularization(dist, self.entropyRegularizationMagnitude)
+            # print(dist)
         dist = Categorical(dist)
+        # print(dist)
+        # input()
 
         return dist
 
@@ -80,10 +89,43 @@ class ActorNetwork(nn.Module):
     def load_checkpoint(self):
         self.load_state_dict(T.load(self.checkpoint_file))
 
+    @staticmethod
+    # Ця функція регуляризує розподіл ймовірностей, на основі сили регуляризації
+    def entropyRegularization(distTensor, magnitude):
+        # Якщо сила регуляризації не відповідає крітерію, повертаємо початковий розподіл
+        if magnitude <= 0 or magnitude > 1:
+            return distTensor
+
+        # Готуємо дані
+        detached = distTensor.detach()
+        arrayed = detached.numpy()
+        successChances = arrayed.copy()
+
+        # Рахуємо розподіл не ймовірності
+        unsuccessfulChance = [1-chance for chance in successChances[0]]
+
+        # Нормалізуємо розаоділ не ймовірності
+        summ = sum(unsuccessfulChance)
+        unsuccessfulChanceNormalized = [float(i) / summ for i in unsuccessfulChance]
+
+        # Ітеруємо для кожного елементу розподілу
+        i=0
+        for chance in successChances[0]:
+            # Зменшуємо вірогідність відповідно до сили регуляризації
+            chance *= (1-magnitude)
+
+            # Збільшуємо вірогідність відповідно до не ймовірності
+            chance += unsuccessfulChanceNormalized[i]*magnitude
+
+            # Зберігаємо результат
+            detached[0][i] = chance
+            i+=1
+        return distTensor
+
 
 class CriticNetwork(nn.Module):
     def __init__(self, input_dims, alpha, fc1_dims=256, fc2_dims=256,
-                 chkpt_dir='tmp/ppo'): #tmp/ppo perm/firstSave
+                 chkpt_dir='tmp/ppo'):
         super(CriticNetwork, self).__init__()
 
         self.checkpoint_file = os.path.join(chkpt_dir, 'critic_torch_ppo')
@@ -113,14 +155,17 @@ class CriticNetwork(nn.Module):
 
 class Agent:
     def __init__(self, n_actions, input_dims, gamma=0.99, alpha=0.0003, gae_lambda=0.95,
-                 policy_clip=0.2, batch_size=64, n_epochs=10):
+                 actor_fc1=2048, actor_fc2=2048, critic_fc1=2048, critic_fc2=2048,
+                 policy_clip=0.2, batch_size=64, n_epochs=10, entropyRegularizationMagnitude=0, chkpt_dir='tmp/ppo'):
         self.gamma = gamma
         self.policy_clip = policy_clip
         self.n_epochs = n_epochs
         self.gae_lambda = gae_lambda
 
-        self.actor = ActorNetwork(n_actions, input_dims, alpha)
-        self.critic = CriticNetwork(input_dims, alpha)
+        self.actor = ActorNetwork(n_actions, input_dims, alpha, chkpt_dir=chkpt_dir,
+                                  fc1_dims=actor_fc1, fc2_dims=actor_fc2,
+                                  entropyRegularizationMagnitude=entropyRegularizationMagnitude)
+        self.critic = CriticNetwork(input_dims, alpha, chkpt_dir=chkpt_dir, fc1_dims=critic_fc1, fc2_dims=critic_fc2)
         self.memory = PPOMemory(batch_size)
 
     def remember(self, state, action, probs, vals, reward, done):

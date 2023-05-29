@@ -4,6 +4,7 @@ class Hub:
         self.services = services
         self.node = node
         self.ticksToReceive = ticksToReceive
+        self.deathMark = False
         if node is None or pos is None or pyplotAx is None:
             self.animated = False
         else:

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import Hive
 import ppo
 import environment
+import BuildAndTest
 import Field
 import Map
 import Requests
@@ -26,105 +27,43 @@ if __name__ == '__main__':
     # FV.visualiseField()
 
     # Complex analytical (calculated only)
-    env = environment.Environment(seed=0,  amountOfNodes=100, amountOfEdges=150, hubsAmount=20, couriersAmount=20)
-
-    observation = env.reset()
-    done = False
-    score = 0
-    n_steps = 0
-    totalTicks = 0
-    while not done:
-        action = Hive.Hivemind.complexAnalyticalAgent(observation)
-        observation_, reward, done, info, totalTicks = env.step(action)
-        n_steps += 1
-        score += reward
-        observation = observation_
-        if n_steps%1600 == 0:
-            print(n_steps*100/160000, '%')
-        if n_steps % 160000 == 0:
-            done = True
-
-    print('Analytical', 'score %.1f' % score, 'Relative score', 1000*score/totalTicks)
+    # 3 vertexes
+    # BuildAndTest.runComplexAnalyticalAgent(amountOfNodes=3, amountOfEdges=2, couriersAmount=1, hubsAmount=1)
+    # 10 vertexes
+    # BuildAndTest.runComplexAnalyticalAgent(seed=3, addCarryingBit=True, outOf=1500)
+    # 100 vertexes
+    # BuildAndTest.runComplexAnalyticalAgent(amountOfNodes=100, amountOfEdges=150, hubsAmount=20,
+    #                                        couriersAmount=20, totalSteps=160000)
 
     # ppo (calculated only)
-    env = environment.Environment(seed=0, amountOfNodes=100, amountOfEdges=150, hubsAmount=20, couriersAmount=20)
+    # 3 vertexes
+    # BuildAndTest.runPpoAgent(amountOfNodes=3, amountOfEdges=2, couriersAmount=1, hubsAmount=1, checkpointDir='tmp/ppo')
+    # 10 vertexes
+    # BuildAndTest.runPpoAgent(amountOfNodes=10, amountOfEdges=15, couriersAmount=2, hubsAmount=2,
+    #                          actor_fc1=2048, actor_fc2=2048, critic_fc1=2048, critic_fc2=2048,
+    #                          N=16, batchSize=40, numberOfSteps=2400, addCarryingBit=True, seed=3,
+    #                          checkpointDir='tmp/ppo', numberOfGames=1000, outOf=1500, alpha=0.00003,
+    #                          entropyRegularizationMagnitude=0.02, oneStepBehind=True)
 
-    N = 400
-    batch_size = 10
-    n_epochs = 4
-    alpha = 0.00003
-    agent = ppo.Agent(n_actions=env.amountOfNodes, batch_size=batch_size,
-                      alpha=alpha, n_epochs=n_epochs,
-                      input_dims=(env.observationSpace,))
-    n_games = 1000
+    # 100 vertexes
+    # BuildAndTest.runPpoAgent(amountOfNodes=100, amountOfEdges=150, couriersAmount=20, hubsAmount=20,
+    #                          N=160, batchSize=400, numberOfSteps=24000, numberOfGames=1000, addCarryingBit=True,
+    #                          checkpointDir='tmp/ppo')
 
-    best_score = 0
-    score_history = []
-
-    learn_iters = 0
-    avg_score = 0
-    n_steps = 0
-
-    for i in range(n_games):
-        observation = env.reset()
-        done = False
-        score = 0
-        totalTicks = 0
-        while not done:
-            action, prob, val = agent.choose_action(observation)
-            observation_, reward, done, info, totalTicks = env.step(action)
-            n_steps += 1
-            score += reward
-            agent.remember(observation, action, prob, val, reward, done)
-            if n_steps % N == 0:
-                agent.learn()
-                learn_iters += 1
-            observation = observation_
-            if n_steps % 8000 == 0:
-                done = True
-        score_history.append(score)
-        avg_score = np.mean(score_history[-100:])
-
-        if avg_score > best_score:
-            best_score = avg_score
-            agent.save_models()
-
-        print('episode', i, 'score %.1f' % score, 'Relative score', 1000*score/totalTicks, 'avg score %.1f' % avg_score,
-              'time_steps', n_steps, 'learning_steps', learn_iters)
-    x = [i + 1 for i in range(len(score_history))]
-    plt.plot(x, score_history)
-    plt.savefig("results.png")
-    plt.show()
+    # Load and train (calculated only)
+    # BuildAndTest.loadAndRunPpoAgent(amountOfNodes=10, amountOfEdges=15, couriersAmount=2, hubsAmount=2,
+    #                                 actor_fc1=2048, actor_fc2=2048, critic_fc1=2048, critic_fc2=2048,
+    #                                 N=16, batchSize=40, numberOfSteps=2400, addCarryingBit=True, seed=3,
+    #                                 checkpointDir='tmp/ppo', numberOfGames=1000, outOf=1500, alpha=0.00003)
 
     # Complex analytical visualised
-    # field = Field.Field(Map.MapCreator.createRandomMap(amountOfNodes=10, amountOfEdges=15))
-    # Map.MapCreator.randomiseWeights(field.map, 25, 100)
-    #
-    # field.addRandomPassiveHubs(2, ["Test"])
-    #
-    # field.addCouriers('Clone Trooper', "ai", 2)
-    #
-    # mainRequestGenerator = Requests.RequestGenerator(1, 3000, ["Test"])
-    # field.addRequestGenerator(mainRequestGenerator)
-    #
-    # analyticalAgent = Hive.AnalyticalAi("complex analytical")
-    #
-    # FV = Field.FieldVisualiser(field, hasAi=True, agent=analyticalAgent)
-    # FV.visualiseField()
+    BuildAndTest.visualiseComplexAnalytical(seed=3,  amountOfNodes=10, amountOfEdges=15, hubsAmount=2, couriersAmount=2,
+                                            addCarryingBit=True, oneStepBehind=True)
+
+    # Load and test agent
+    # BuildAndTest.testLoadedAgent(loadFrom='perm/thirdSave', addCarryingBit=True, outOf=1500, critic_fc1=256, critic_fc2=256)
 
     # Visualise agent
-    # batch_size = 10
-    # n_epochs = 8
-    # alpha = 0.00003
-    # agent = ppo.Agent(n_actions=env.amountOfNodes, batch_size=batch_size,
-    #                   alpha=alpha, n_epochs=n_epochs,
-    #                   input_dims=(env.observationSpace,))
-    # agent.load_models()
-    #
-    # field = env.field
-    #
-    # FV = Field.FieldVisualiser(field, hasAi=True, agent=agent)
-    # FV.visualiseField()
-
-
-
+    # BuildAndTest.visualiseLoadedAgent(amountOfNodes=10, amountOfEdges=15, couriersAmount=2, hubsAmount=2, loadFrom='tmp/ppo',
+    #                                   actor_fc1=2048, actor_fc2=2048, critic_fc1=2048, critic_fc2=2048,
+    #                                   addCarryingBit=True, seed=3, outOf=1500)

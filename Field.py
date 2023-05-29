@@ -19,8 +19,8 @@ class Field:
         self.passiveHubs = list()
         self.requestGenerators = list()
 
-    def addPassiveCourier(self, courierName, aiName, node):
-        self.passiveCouriers.append((courierName, aiName, node))
+    def addPassiveCourier(self, courierName, aiName, node, oneStepBehind=False):
+        self.passiveCouriers.append((courierName, aiName, node, oneStepBehind))
 
     def addPassiveHub(self, node, services):
         self.passiveHubs.append((node, services))
@@ -37,27 +37,24 @@ class Field:
     def addRequestGenerator(self, requestGenerator):
         self.requestGenerators.append(requestGenerator)
 
-    def addCouriers(self, courierName, aiName, amount):
+    def addCouriers(self, courierName, aiName, amount, oneStepBehind=False):
         for _ in range(amount):
             allNodes = list(self.map.adj.keys())
             randomNode = allNodes[random.randint(0, len(allNodes) - 1)]
-            self.addPassiveCourier(courierName, aiName, randomNode)
+            self.addPassiveCourier(courierName, aiName, randomNode, oneStepBehind)
 
 
-class FieldCalculator:
-    def __init__(self, field):
+class MetaFieldCalculator:
+    def __init__(self, field, addCarryingBit=False):
         self.field = field
         self.passiveCouriers = self.field.passiveCouriers
         self.passiveHubs = self.field.passiveHubs
         self.activeCouriers = list()
         self.activeRequests = list()
-        self.previousReceivedRequests = 0
         self.totalReceivedRequests = 0
-        self.previousTicks = 0
-        self.totalTicks = 0
         self.activeHubs = list()
         self.allShortestPaths = self.calculateAllShortestPaths()
-        self.courierId = 0
+        self.addCarryingBit = addCarryingBit
 
     def calculateAllShortestPaths(self):
         graph = self.field.map
@@ -68,14 +65,9 @@ class FieldCalculator:
         return result
 
     def receiveRequest(self, request):
-        self.activeRequests.remove(request)
+        if not request.delayedDeletion:
+            self.activeRequests.remove(request)
         self.totalReceivedRequests += 1
-
-    def addRequest(self, node, serviceRequest):
-        self.activeRequests.append(Requests.Request(node, serviceRequest))
-
-    def addHub(self, node, services):
-        self.activeHubs.append(Hub.Hub(node, services))
 
     def addRandomRequest(self):
         allNodes = list(self.field.map.adj.keys())
@@ -86,6 +78,82 @@ class FieldCalculator:
         allNodes = list(self.field.map.adj.keys())
         target = allNodes[random.randint(0, len(allNodes) - 1)]
         self.addHub(target, ['Test'])
+
+    def encodeNodes(self, listOfNodeIds):
+        result = list()
+        for node in list(self.field.map.adj.keys()):
+            result.append(1 if node in listOfNodeIds else 0)
+        return result
+
+    def observeForCourier(self, courierId):
+        courier = self.activeCouriers[courierId]
+        dictOfShortestPaths = self.allShortestPaths[courier.courierAi.currentNode][0]
+        myKeys = list(dictOfShortestPaths.keys())
+        myKeys.sort()
+        sorted_dict = {i: dictOfShortestPaths[i] for i in myKeys}
+        listOfShortestPaths = list(sorted_dict.values())
+        maxx = max(listOfShortestPaths)
+        listOfShortestPathsNormalizedAgainstTheMaximum = [float(i) / maxx for i in listOfShortestPaths]
+        # print(listOfShortestPaths)
+        # print(listOfShortestPathsNormalizedAgainstTheMaximum)
+        # input()
+        nodesContainingRequests = [activeRequest.node for activeRequest in self.activeRequests]
+        nodesContainingHubs = [activeHub.node for activeHub in self.activeHubs]
+        nodesContainingCouriers = [activeCourier.courierAi.currentNode for activeCourier in self.activeCouriers]
+        nodesThatAreTargets = [activeCourier.courierAi.finalTargetNode for activeCourier in self.activeCouriers]
+        observation = list()
+        observation.extend(listOfShortestPathsNormalizedAgainstTheMaximum)
+        observation.extend(self.encodeNodes(nodesContainingRequests))
+        observation.extend(self.encodeNodes(nodesContainingHubs))
+        observation.extend(self.encodeNodes(nodesContainingCouriers))
+        observation.extend(self.encodeNodes(nodesThatAreTargets))
+        if self.addCarryingBit:
+            if not courier.carryingService:
+                observation.append(0)
+            else:
+                observation.append(1)
+        return observation
+
+    def killRequests(self):
+        length = len(self.activeRequests)
+        i = 0
+        while i < length:
+            request = self.activeRequests[i]
+            if request.delayedDeletion:
+                self.activeRequests.remove(request)
+                request.deleteRequest()
+                length -= 1
+            else:
+                i += 1
+
+    def showAllData(self):
+        print("Couriers are at", [activeCourier.courierAi.currentNode for activeCourier in self.activeCouriers])
+        print("Requests are at", [activeRequest.node for activeRequest in self.activeRequests])
+        print("Hubs are at", [activeHub.node for activeHub in self.activeHubs])
+        print("Targets are", [activeCourier.courierAi.finalTargetNode for activeCourier in self.activeCouriers])
+
+    def addHub(self, target, param):
+        pass
+
+    def addRequest(self, target, param):
+        pass
+
+
+class FieldCalculator(MetaFieldCalculator):
+    def __init__(self, field, addCarryingBit=False):
+        super().__init__(field, addCarryingBit)
+        self.previousVisitedHubs = 0
+        self.totalVisitedHubs = 0
+        self.previousReceivedRequests = 0
+        self.previousTicks = 0
+        self.totalTicks = 0
+        self.courierId = 0
+
+    def addRequest(self, node, serviceRequest):
+        self.activeRequests.append(Requests.Request(node, serviceRequest))
+
+    def addHub(self, node, services):
+        self.activeHubs.append(Hub.Hub(node, services))
 
     def generateRequests(self):
         for node in list(self.field.map.adj.keys()):
@@ -102,30 +170,8 @@ class FieldCalculator:
         for passiveCourier in self.passiveCouriers:
             self.activeCouriers.append(
                 Courier.Courier(courierName=passiveCourier[0], aiName=passiveCourier[1], currentNode=passiveCourier[2],
+                                oneStepBehind=passiveCourier[3], fieldCalculator=self,
                                 hivemind=hivemind))
-
-    def encodeNodes(self, listOfNodeIds):
-        result = list()
-        for node in list(self.field.map.adj.keys()):
-            result.append(1 if node in listOfNodeIds else 0)
-        return result
-
-    def observeForCourier(self, courierId):
-        courier = self.activeCouriers[courierId]
-        listOfShortestPaths = self.allShortestPaths[courier.courierAi.currentNode][0]
-        summ = sum(listOfShortestPaths)
-        listOfShortestPathsNormalizedAgainstTheMaximum = [float(i)/summ for i in listOfShortestPaths]
-        nodesContainingRequests = [activeRequest.node for activeRequest in self.activeRequests]
-        nodesContainingHubs = [activeHub.node for activeHub in self.activeHubs]
-        nodesContainingCouriers = [activeCourier.courierAi.currentNode for activeCourier in self.activeCouriers]
-        nodesThatAreTargets = [activeCourier.courierAi.finalTargetNode for activeCourier in self.activeCouriers]
-        observation = list()
-        observation.extend(listOfShortestPathsNormalizedAgainstTheMaximum)
-        observation.extend(self.encodeNodes(nodesContainingRequests))
-        observation.extend(self.encodeNodes(nodesContainingHubs))
-        observation.extend(self.encodeNodes(nodesContainingCouriers))
-        observation.extend(self.encodeNodes(nodesThatAreTargets))
-        return observation
 
     def tickField(self):
         for _ in range(self.courierId, len(self.activeCouriers)):
@@ -152,78 +198,47 @@ class FieldCalculator:
                 return observation, reward, False, "idk", self.totalTicks
 
     def evaluate(self):
-        if self.totalTicks-self.previousTicks != 0:
-            reward = self.calculateReward()
-            self.previousReceivedRequests = self.totalReceivedRequests
-            self.previousTicks = self.totalTicks
-        else:
-            reward = 0
-        # if reward!=0:
-        #    print("Reward is", reward)
+        # if self.totalTicks-self.previousTicks != 0:
+        #     reward = self.calculateReward()
+        #     self.previousReceivedRequests = self.totalReceivedRequests
+        #     self.previousTicks = self.totalTicks
+        # else:
+        #     reward = 0
+        # # if reward!=0:
+        # #    print("Reward is", reward)
+        reward = self.calculateReward()
+        self.previousTicks = self.totalTicks
+        self.previousReceivedRequests = self.totalReceivedRequests
+        self.previousVisitedHubs = self.totalVisitedHubs
         return reward
 
     def calculateReward(self):
-        return (self.totalReceivedRequests-self.previousReceivedRequests)-(self.totalTicks-self.previousTicks)/1000
+        if self.totalReceivedRequests == self.previousReceivedRequests and \
+                self.totalVisitedHubs == self.previousVisitedHubs:
+            punishment = (self.totalTicks-self.previousTicks)/500
+        else:
+            punishment = 0
+        return (self.totalReceivedRequests-self.previousReceivedRequests)*2\
+            + (self.totalVisitedHubs-self.previousVisitedHubs)*2\
+            - punishment
 
-    def showAllData(self):
-        print("Couriers are at", [activeCourier.courierAi.currentNode for activeCourier in self.activeCouriers])
-        print("Requests are at", [activeRequest.node for activeRequest in self.activeRequests])
-        print("Hubs are at", [activeHub.node for activeHub in self.activeHubs])
-        print("Targets are", [activeCourier.courierAi.finalTargetNode for activeCourier in self.activeCouriers])
 
-
-class FieldVisualiser:
-    def __init__(self, field, hasAi=False, agent=None):
-        self.field = field
-        self.passiveCouriers = self.field.passiveCouriers
-        self.passiveHubs = self.field.passiveHubs
-        self.activeCouriers = list()
-        self.activeRequests = list()
-        self.totalReceivedRequests = 0
-        self.activeHubs = list()
+class FieldVisualiser(MetaFieldCalculator):
+    def __init__(self, field, hasAi=False, agent=None, addCarryingBit=False):
+        super().__init__(field, addCarryingBit)
         self.ax = None
         self.pos = None
         self.fig = None
         self.axes = None
         self.profilingAx = None
-        self.allShortestPaths = self.calculateAllShortestPaths()
         self.hasAi = hasAi
         self.agent = agent
 
-    def calculateAllShortestPaths(self):
-        graph = self.field.map
-        result = dict()
-        for i in range(graph.number_of_nodes()):
-            length, path = nx.single_source_dijkstra(graph, i)
-            result[i] = (length, path)
-        return result
-
-    def receiveRequest(self, request):
-        self.activeRequests.remove(request)
-        self.totalReceivedRequests += 1
-
     def addRequest(self, node, serviceRequest):
-        self.activeRequests.append(Requests.Request(node, serviceRequest, self.pos, self.ax))
+        self.activeRequests.append(Requests.Request(node, serviceRequest, ax=self.ax, pos=self.pos))
 
     def addHub(self, node, services):
-        self.activeHubs.append(Hub.Hub(node, services, self.pos, self.ax))
-
-    def addRandomRequest(self):
-        allNodes = list(self.field.map.adj.keys())
-        target = allNodes[random.randint(0, len(allNodes) - 1)]
-        self.addRequest(target, "Test")
-
-    def addRandomActiveHub(self):
-        allNodes = list(self.field.map.adj.keys())
-        target = allNodes[random.randint(0, len(allNodes) - 1)]
-        self.addHub(target, ['Test'])
-
-    def generateRequests(self):
-        for node in list(self.field.map.adj.keys()):
-            for requestGenerator in self.field.requestGenerators:
-                possibleRequest = requestGenerator.generateRequest(node, self.pos, self.ax)
-                if possibleRequest is not None:
-                    self.activeRequests.append(possibleRequest)
+        self.activeHubs.append(Hub.Hub(node, services, pyplotAx=self.ax, pos=self.pos))
 
     def hideCourierMovement(self, event):
         for courier in self.activeCouriers:
@@ -233,34 +248,12 @@ class FieldVisualiser:
         for courier in self.activeCouriers:
             courier.courierMovement.animated = True
 
-    def encodeNodes(self, listOfNodeIds):
-        result = list()
+    def generateRequests(self):
         for node in list(self.field.map.adj.keys()):
-            result.append(1 if node in listOfNodeIds else 0)
-        return result
-
-    def observeForCourier(self, courierId):
-        courier = self.activeCouriers[courierId]
-        listOfShortestPaths = self.allShortestPaths[courier.courierAi.currentNode][0]
-        summ = sum(listOfShortestPaths)
-        listOfShortestPathsNormalizedAgainstTheMaximum = [float(i)/summ for i in listOfShortestPaths]
-        nodesContainingRequests = [activeRequest.node for activeRequest in self.activeRequests]
-        nodesContainingHubs = [activeHub.node for activeHub in self.activeHubs]
-        nodesContainingCouriers = [activeCourier.courierAi.currentNode for activeCourier in self.activeCouriers]
-        nodesThatAreTargets = [activeCourier.courierAi.finalTargetNode for activeCourier in self.activeCouriers]
-        observation = list()
-        observation.extend(listOfShortestPathsNormalizedAgainstTheMaximum)
-        observation.extend(self.encodeNodes(nodesContainingRequests))
-        observation.extend(self.encodeNodes(nodesContainingHubs))
-        observation.extend(self.encodeNodes(nodesContainingCouriers))
-        observation.extend(self.encodeNodes(nodesThatAreTargets))
-        return observation
-
-    def showAllData(self):
-        print("Couriers are at", [activeCourier.courierAi.currentNode for activeCourier in self.activeCouriers])
-        print("Requests are at", [activeRequest.node for activeRequest in self.activeRequests])
-        print("Hubs are at", [activeHub.node for activeHub in self.activeHubs])
-        print("Targets are", [activeCourier.courierAi.finalTargetNode for activeCourier in self.activeCouriers])
+            for requestGenerator in self.field.requestGenerators:
+                possibleRequest = requestGenerator.generateRequest(node, self.pos, self.ax)
+                if possibleRequest is not None:
+                    self.activeRequests.append(possibleRequest)
 
     def visualiseField(self):
         gs_kw = dict(width_ratios=[1, 2])
@@ -285,14 +278,16 @@ class FieldVisualiser:
         # for _ in range(3):
         #    self.addRandomActiveHub()
         # ADHOC U
-
+        i=0
         for passiveHub in self.passiveHubs:
             self.addHub(passiveHub[0], passiveHub[1])
+            # print(self.activeHubs[i].node)
+            i+=1
 
         for passiveCourier in self.passiveCouriers:
             self.activeCouriers.append(
                 Courier.Courier(passiveCourier[0], passiveCourier[1], self.pos, passiveCourier[2],
-                                self.ax, hivemind))
+                                self.ax, hivemind, oneStepBehind=passiveCourier[3], fieldCalculator=self))
 
         changedCouriers = []
 
@@ -312,7 +307,10 @@ class FieldVisualiser:
                 for courier in self.activeCouriers:
                     if courier.noPathAndMovement():
                         observation = self.observeForCourier(i)
-                        changedCouriers.append(courier.iterateCourier(action=self.agent.choose_action(observation)))
+                        # print(observation)
+                        action = self.agent.choose_action(observation)
+                        # print(action)
+                        changedCouriers.append(courier.iterateCourier(action=action))
                         # self.showAllData()
                     else:
                         changedCouriers.append(courier.iterateCourier())

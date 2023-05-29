@@ -28,8 +28,8 @@ class CourierMovement:
 
     def startMovementToCoord(self, xTargetCoord=None, yTargetCoord=None, ticksToReachTarget=0):
         if self.animated:
-            self.xVelocity = (xTargetCoord-self.x)/ticksToReachTarget
-            self.yVelocity = (yTargetCoord-self.y)/ticksToReachTarget
+            self.xVelocity = (xTargetCoord - self.x) / ticksToReachTarget
+            self.yVelocity = (yTargetCoord - self.y) / ticksToReachTarget
         self.ticksOfMovementLeft = ticksToReachTarget
 
     def stopMovementToCoord(self):
@@ -41,7 +41,7 @@ class CourierMovement:
     def iterateMovement(self):
         if self.ticksOfMovementLeft > 0:
             if self.animated:
-                self.moveTo(self.x+self.xVelocity, self.y+self.yVelocity)
+                self.moveTo(self.x + self.xVelocity, self.y + self.yVelocity)
             self.ticksOfMovementLeft -= 1
         else:
             self.stopMovementToCoord()
@@ -55,7 +55,9 @@ class CourierMovement:
 
 
 class Courier:
-    def __init__(self, courierName, aiName, pos=None, currentNode=0, pyplotAx=None, hivemind=None):
+    def __init__(self, courierName, aiName, pos=None, currentNode=0, pyplotAx=None, hivemind=None, oneStepBehind=False,
+                 fieldCalculator=None):
+        self.fieldCalculator = fieldCalculator
         self.name = courierName
         if pos is None or pyplotAx is None:
             self.courierMovement = CourierMovement()
@@ -63,10 +65,24 @@ class Courier:
             self.courierMovement = CourierMovement(pos[currentNode][0], pos[currentNode][1], pyplotAx)
         self.courierAi = CourierAi(aiName, self, currentNode, hivemind)
         self.carryingService = None
+        self.oneStepBehind = oneStepBehind
 
     def iterateCourier(self, action=None):
         self.courierAi.iterateAi(action)
-        return self.courierMovement.iterateMovement()
+        if self.oneStepBehind:
+            self.fieldCalculator.killRequests()
+        self.courierAi.hivemind.moveToFinalNode(self)
+        if self.courierAi.freeze <=0:
+            courierMovement = self.courierMovement.iterateMovement()
+        else:
+            courierMovement = None
+            self.courierAi.freeze -= 1
+        self.courierAi.endOfTheMoveCheck()
+        self.courierAi.provideOrGetService()
+
+        # if action is not None:
+        #     print(action)
+        return courierMovement
 
     def noPathAndMovement(self):
         return len(self.courierAi.courierPath) == 0 and self.courierMovement.ticksOfMovementLeft == 0
@@ -84,13 +100,27 @@ class CourierAi:
         self.courierPath = ()
         self.freeze = 0
 
-    def iterateAi(self, action=None):
+    def endOfTheMoveCheck(self):
+        if self.courier.courierMovement.ticksOfMovementLeft == 0:
+            self.currentNode = self.currentTargetNode
+
+
+        # else:
+        #     print(self.courier.courierMovement.ticksOfMovementLeft)
+        #     pass
+
+    def provideOrGetService(self):
         if self.freeze <= 0:
-            if self.courier.courierMovement.ticksOfMovementLeft == 0:
-                self.currentNode = self.currentTargetNode
-            self.hiveMindAi(action)
-        else:
-            self.freeze -= 1
+            self.hivemind.provideOrGetService(self.courier)
+
+    def iterateAi(self, action=None):
+        self.hiveMindAi(action)
+        # if self.freeze <= 0:
+        #     # if self.courier.courierMovement.ticksOfMovementLeft == 0:
+        #     #     self.currentNode = self.currentTargetNode
+        #     self.hiveMindAi(action)
+        # else:
+        #     self.freeze -= 1
 
     def hiveMindAi(self, action=None):
         self.hivemind.getCommands(self.courier, action)
