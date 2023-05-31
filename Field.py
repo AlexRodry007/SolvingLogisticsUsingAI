@@ -19,28 +19,47 @@ class Field:
         self.passiveHubs = list()
         self.requestGenerators = list()
 
+    # Додавання пасивного кур'єра записує необхідні дані для його створення
     def addPassiveCourier(self, courierName, aiName, node, oneStepBehind=False):
         self.passiveCouriers.append((courierName, aiName, node, oneStepBehind))
 
+    # Додавання пасивного депо записує необхідні дані для його створення
     def addPassiveHub(self, node, services):
         self.passiveHubs.append((node, services))
 
-    def addRandomPassiveHubs(self, amount, services):
-        for _ in range(amount):
-            while True:
-                allNodes = list(self.map.adj.keys())
-                randomNode = allNodes[random.randint(0, len(allNodes) - 1)]
-                if randomNode not in self.passiveHubs:
-                    break
-            self.addPassiveHub(randomNode, services)
-
+    # Додавання генератора запитів дозволяє зручно їх зберігати
     def addRequestGenerator(self, requestGenerator):
         self.requestGenerators.append(requestGenerator)
 
-    def addCouriers(self, courierName, aiName, amount, oneStepBehind=False):
+    # Ця функція додає декілька пасивних депо на випадкові вузли мапи
+    def addRandomPassiveHubs(self, amount, services):
+        # Стільки разів, скільки необхідно депо
         for _ in range(amount):
+            # Намагаємось знайти вузол, на якому ще нема депо
+            while True:
+                # Створюємо список усіх вузлів
+                allNodes = list(self.map.adj.keys())
+
+                # Обираємо серед них випадковий
+                randomNode = allNodes[random.randint(0, len(allNodes) - 1)]
+
+                # Якщо цього вузла нема серед тих на якому вже є депо - вузол знайдено
+                if randomNode not in self.passiveHubs:
+                    break
+            # Додаємо пасивне депо
+            self.addPassiveHub(randomNode, services)
+
+    # Ця функція додає декілька пасивних кур'єрів на випадкові вузли мапи
+    def addCouriers(self, courierName, aiName, amount, oneStepBehind=False):
+        # Стільки разів, скільки необхідно кур'єрів
+        for _ in range(amount):
+            # Створюємо список усіх вузлів
             allNodes = list(self.map.adj.keys())
+
+            # Обираємо серед них випадковий
             randomNode = allNodes[random.randint(0, len(allNodes) - 1)]
+
+            # Додаємо пасивного кур'єра
             self.addPassiveCourier(courierName, aiName, randomNode, oneStepBehind)
 
 
@@ -86,27 +105,39 @@ class MetaFieldCalculator:
         return result
 
     def observeForCourier(self, courierId):
+        # Знаходимо кур'єра по номеру
         courier = self.activeCouriers[courierId]
+
+        # Формуємо список найкоротших шляхів
         dictOfShortestPaths = self.allShortestPaths[courier.courierAi.currentNode][0]
+
+        # Сортуємо список за номером вузлів
         myKeys = list(dictOfShortestPaths.keys())
         myKeys.sort()
         sorted_dict = {i: dictOfShortestPaths[i] for i in myKeys}
+
+        # Записуємо довжину найкоротших шляхів
         listOfShortestPaths = list(sorted_dict.values())
+
+        # Нормуємо список найкоротших шляхів
         maxx = max(listOfShortestPaths)
         listOfShortestPathsNormalizedAgainstTheMaximum = [float(i) / maxx for i in listOfShortestPaths]
-        # print(listOfShortestPaths)
-        # print(listOfShortestPathsNormalizedAgainstTheMaximum)
-        # input()
+
+        # Записуємо вузли на яких знаходяться важливі речі
         nodesContainingRequests = [activeRequest.node for activeRequest in self.activeRequests]
         nodesContainingHubs = [activeHub.node for activeHub in self.activeHubs]
         nodesContainingCouriers = [activeCourier.courierAi.currentNode for activeCourier in self.activeCouriers]
         nodesThatAreTargets = [activeCourier.courierAi.finalTargetNode for activeCourier in self.activeCouriers]
+
+        # Кодуємо та записуємо спостереження
         observation = list()
         observation.extend(listOfShortestPathsNormalizedAgainstTheMaximum)
         observation.extend(self.encodeNodes(nodesContainingRequests))
         observation.extend(self.encodeNodes(nodesContainingHubs))
         observation.extend(self.encodeNodes(nodesContainingCouriers))
         observation.extend(self.encodeNodes(nodesThatAreTargets))
+
+        # Додаємо біт перевезень, якщо він є
         if self.addCarryingBit:
             if not courier.carryingService:
                 observation.append(0)
@@ -114,17 +145,20 @@ class MetaFieldCalculator:
                 observation.append(1)
         return observation
 
-    def killRequests(self):
+    def killRequests(self, courierId):
         length = len(self.activeRequests)
         i = 0
         while i < length:
             request = self.activeRequests[i]
-            if request.delayedDeletion:
-                self.activeRequests.remove(request)
-                request.deleteRequest()
+            if request.delayedDeletion == courierId:
+                self.deleteRequest(request)
                 length -= 1
             else:
                 i += 1
+
+    def deleteRequest(self, request):
+        self.activeRequests.remove(request)
+        request.deleteRequest()
 
     def showAllData(self):
         print("Couriers are at", [activeCourier.courierAi.currentNode for activeCourier in self.activeCouriers])
@@ -167,49 +201,58 @@ class FieldCalculator(MetaFieldCalculator):
         for passiveHub in self.passiveHubs:
             self.addHub(passiveHub[0], passiveHub[1])
 
+        i = 1
         for passiveCourier in self.passiveCouriers:
             self.activeCouriers.append(
                 Courier.Courier(courierName=passiveCourier[0], aiName=passiveCourier[1], currentNode=passiveCourier[2],
                                 oneStepBehind=passiveCourier[3], fieldCalculator=self,
-                                hivemind=hivemind))
+                                hivemind=hivemind, id=i))
+            i+=1
 
     def tickField(self):
+        # Ітеруємо усіх кур'єрів
         for _ in range(self.courierId, len(self.activeCouriers)):
             courier = self.activeCouriers[self.courierId]
+            # Якщо кур'єр потребує команди - повертаємо спостереження
             if courier.noPathAndMovement():
                 return self.observeForCourier(self.courierId)
             courier.iterateCourier()
             self.courierId += 1
         self.courierId = 0
+
+        # Застосовуємо генератор запитів для усіх вершин
         self.generateRequests()
         self.totalTicks += 1
         return None
 
     def step(self, action):
-        # self.showAllData()
-        # input("Press any key to continue")
+        # Застосовуємо команду до поточного кур'єра, та продовжуємо симуляцію
         courier = self.activeCouriers[self.courierId]
         courier.iterateCourier(action)
         self.courierId += 1
         while True:
+            # Якщо мить не поверне спостереження - в команді нема потреби
             observation = self.tickField()
             if observation is not None:
+                # Якщо мить повернула спостереження - рахуємо нагороду
                 reward = self.evaluate()
-                return observation, reward, False, "idk", self.totalTicks
+
+                # Повертаємо результати кроку
+                return observation, reward, False, "nothing", self.totalTicks
 
     def evaluate(self):
-        # if self.totalTicks-self.previousTicks != 0:
-        #     reward = self.calculateReward()
-        #     self.previousReceivedRequests = self.totalReceivedRequests
-        #     self.previousTicks = self.totalTicks
-        # else:
-        #     reward = 0
-        # # if reward!=0:
-        # #    print("Reward is", reward)
-        reward = self.calculateReward()
+        # Підраховуємо деякі альтернативні параметри
         self.previousTicks = self.totalTicks
         self.previousReceivedRequests = self.totalReceivedRequests
         self.previousVisitedHubs = self.totalVisitedHubs
+
+        # Рахуємо нагороду для кур'єра
+        courier = self.activeCouriers[self.courierId]
+        reward = courier.reward - courier.punishment
+        if courier.reward != 0:
+            courier.punishment = 0
+            courier.reward = 0
+
         return reward
 
     def calculateReward(self):
@@ -271,23 +314,18 @@ class FieldVisualiser(MetaFieldCalculator):
         hivemind = Hive.Hivemind(self)
         profiler.startingText()
 
-
-        # ADHOC manual hubs and requests D
-        # for _ in range(10):
-        #     self.addRandomRequest()
-        # for _ in range(3):
-        #    self.addRandomActiveHub()
-        # ADHOC U
         i=0
         for passiveHub in self.passiveHubs:
             self.addHub(passiveHub[0], passiveHub[1])
             # print(self.activeHubs[i].node)
             i+=1
 
+        i=1
         for passiveCourier in self.passiveCouriers:
             self.activeCouriers.append(
                 Courier.Courier(passiveCourier[0], passiveCourier[1], self.pos, passiveCourier[2],
-                                self.ax, hivemind, oneStepBehind=passiveCourier[3], fieldCalculator=self))
+                                self.ax, hivemind, oneStepBehind=passiveCourier[3], fieldCalculator=self, id=i))
+            i+=1
 
         changedCouriers = []
 
@@ -299,29 +337,34 @@ class FieldVisualiser(MetaFieldCalculator):
 
         @Profiling.timeTracker(Profiler=profiler)
         def tickField(frame):
+            # Для сумісності зі старим кодом йде перевірка наявності агента
             if not self.hasAi:
+                # Якщо агента нема, ітеруємо усіх кур'єрів
                 for courier in self.activeCouriers:
                     changedCouriers.append(courier.iterateCourier())
             else:
                 i = 0
+                # При наявності агента, ми ітеруємо через усіх кур'єрів
                 for courier in self.activeCouriers:
                     if courier.noPathAndMovement():
+                        # Якщо кур'єр потребує команди - робимо спостереження
                         observation = self.observeForCourier(i)
-                        # print(observation)
+
+                        # Обираємо команду в залежності від спостереження
                         action = self.agent.choose_action(observation)
-                        # print(action)
+
+                        # Ітеруємо кур'єра, даючи йому команду
                         changedCouriers.append(courier.iterateCourier(action=action))
-                        # self.showAllData()
                     else:
+                        # Якщо кур'єр не потребує команди - просто ітеруємо його
                         changedCouriers.append(courier.iterateCourier())
                     i += 1
-            self.generateRequests()
-            profiler.tickProfiling()
 
-            # ADHOC manual request update D
-            # if len(self.activeRequests) < 10:
-            #    self.addRandomRequest()
-            # ADHOC U
+            # Застосовуємо генератор запитів для усіх вершин
+            self.generateRequests()
+
+            # Ітеруємо профілювання
+            profiler.tickProfiling()
 
         delayCap = 0
         ani = animation.FuncAnimation(fig=self.fig,
@@ -332,7 +375,5 @@ class FieldVisualiser(MetaFieldCalculator):
                                       repeat_delay=delayCap,
                                       blit=False,
                                       repeat=True)
-        # self.fig.canvas.flush_events()
-        # self.fig.canvas.draw()
 
         plt.show()

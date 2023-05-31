@@ -55,37 +55,67 @@ class CourierMovement:
 
 
 class Courier:
-    def __init__(self, courierName, aiName, pos=None, currentNode=0, pyplotAx=None, hivemind=None, oneStepBehind=False,
-                 fieldCalculator=None):
+    def __init__(self, courierName, aiName, pos=None, currentNode=0,
+                 pyplotAx=None, hivemind=None, oneStepBehind=False,
+                 fieldCalculator=None, id=0):
+        # Калькулятор або візуалізатор поля, в якому знаходиться кур'єр
         self.fieldCalculator = fieldCalculator
+
+        # Ім'я, яке ніде не використовується
         self.name = courierName
+
+        # Перевірка чи є кур'єр анімованим, чи ні
         if pos is None or pyplotAx is None:
             self.courierMovement = CourierMovement()
         else:
-            self.courierMovement = CourierMovement(pos[currentNode][0], pos[currentNode][1], pyplotAx)
+            self.courierMovement = CourierMovement(pos[currentNode][0],
+                                                   pos[currentNode][1], pyplotAx)
+        # Поведінка кур'єра
         self.courierAi = CourierAi(aiName, self, currentNode, hivemind)
+
+        # Товар, ячкий кур'єр перевозить
         self.carryingService = None
+
+        # Формат видалення виконаних запитів
         self.oneStepBehind = oneStepBehind
 
-    def iterateCourier(self, action=None):
-        self.courierAi.iterateAi(action)
-        if self.oneStepBehind:
-            self.fieldCalculator.killRequests()
-        self.courierAi.hivemind.moveToFinalNode(self)
-        if self.courierAi.freeze <=0:
-            courierMovement = self.courierMovement.iterateMovement()
-        else:
-            courierMovement = None
-            self.courierAi.freeze -= 1
-        self.courierAi.endOfTheMoveCheck()
-        self.courierAi.provideOrGetService()
+        # Нагорода та Покарання
+        self.reward = 0
+        self.punishment = 0
 
-        # if action is not None:
-        #     print(action)
+        # Унікальний ідентифікаційний номер
+        self.id = id
+
+    def iterateCourier(self, action=None):
+        # Якщо кур'єр не зайнятий
+        if self.courierAi.freeze <= 0:
+            # Ітеруємо "інтелект" кур'єра, пропонуємо дію, якщо вона є
+            self.courierAi.iterateAi(action)
+
+            # Якщо необхідно, кур'єр власноруч видаляє виконані запити
+            if self.oneStepBehind:
+                self.fieldCalculator.killRequests(self.id)
+
+            # Прораховуєм команди для руху
+            self.courierAi.hivemind.moveToFinalNode(self)
+
+            # Рухаємо кур'єра
+            courierMovement = self.courierMovement.iterateMovement()
+            self.courierAi.endOfTheMoveCheck()
+
+            # Отримуємо або доставляємо товар
+            self.courierAi.provideOrGetService()
+        else:
+            # Зменшуємо кількість часу що залишилось бути зайнятим
+            courierMovement = False
+            self.courierAi.freeze -= 1
+
+        # Повертаємо чи рухався кур'єр чи ні
         return courierMovement
 
     def noPathAndMovement(self):
-        return len(self.courierAi.courierPath) == 0 and self.courierMovement.ticksOfMovementLeft == 0
+        return len(self.courierAi.courierPath) == 0 and self.courierMovement.ticksOfMovementLeft == 0 \
+            and self.courierAi.freeze <= 0
 
 
 class CourierAi:
@@ -104,23 +134,12 @@ class CourierAi:
         if self.courier.courierMovement.ticksOfMovementLeft == 0:
             self.currentNode = self.currentTargetNode
 
-
-        # else:
-        #     print(self.courier.courierMovement.ticksOfMovementLeft)
-        #     pass
-
     def provideOrGetService(self):
         if self.freeze <= 0:
             self.hivemind.provideOrGetService(self.courier)
 
     def iterateAi(self, action=None):
         self.hiveMindAi(action)
-        # if self.freeze <= 0:
-        #     # if self.courier.courierMovement.ticksOfMovementLeft == 0:
-        #     #     self.currentNode = self.currentTargetNode
-        #     self.hiveMindAi(action)
-        # else:
-        #     self.freeze -= 1
 
     def hiveMindAi(self, action=None):
         self.hivemind.getCommands(self.courier, action)

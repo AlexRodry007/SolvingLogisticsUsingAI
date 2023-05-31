@@ -36,7 +36,7 @@ def runComplexAnalyticalAgent(seed=0, amountOfNodes=10, amountOfEdges=15, hubsAm
             done = True
     print(env.fieldCalculator.totalVisitedHubs, env.fieldCalculator.previousVisitedHubs,
           env.fieldCalculator.totalReceivedRequests, env.fieldCalculator.previousReceivedRequests)
-    print('Analytical', 'score', score, 'Relative score', 1000 * (score + totalTicks / 1000) / totalTicks)
+    print('Analytical', 'score', score, 'Relative score', 1000 * score / totalTicks)
 
 
 def runPpoAgent(seed=0, amountOfNodes=10, amountOfEdges=15, hubsAmount=2, couriersAmount=2,
@@ -68,30 +68,51 @@ def runPpoAgent(seed=0, amountOfNodes=10, amountOfEdges=15, hubsAmount=2, courie
     n_steps = 0
 
     for i in range(n_games):
+        # Перезапускаємо середовище, та отримуємо перше спостереження
         observation = env.reset()
+
+        # Обнулюємо дані
         done = False
         score = 0
         totalTicks = 0
+
+        # Повторюємо, поки кількість кроків не дорівнює заданій
         while not done:
+            # Обираємо дію в залежності від спостереження
             action, prob, val = agent.choose_action(observation)
+
+            # Отримуємо нове спостереження з середовища
             observation_, reward, done, info, totalTicks = env.step(action)
+
+            # Ведемо облік
             n_steps += 1
             score += reward
             agent.remember(observation, action, prob, val, reward, done)
+
+            # Якщо кількість кроків кратна заданій - проводимо навчання
             if n_steps % N == 0:
                 agent.learn()
                 learn_iters += 1
             observation = observation_
+
+            # Якщо кількість кроків дорівнює заданій - закінчуємо гру
             if n_steps % numberOfSteps == 0:
                 done = True
+
+        # Записуємо історію рахунків
         score_history.append(score)
+
+        # Рахуємо середнє за останні 100 ігор
         avg_score = np.mean(score_history[-100:])
 
+        # Якщо воно найкраще - зберігаємо модель
         if avg_score > best_score:
             best_score = avg_score
             agent.save_models()
 
-        print('episode', i, 'score %.1f' % score, 'Relative score', 1000 * (score + totalTicks / 1000) / totalTicks,
+        # Виводимо результат гри
+        print('episode', i, 'score %.1f' % score, 'Relative score',
+              1000 * score / totalTicks,
               'avg score %.1f' % avg_score,
               'time_steps', n_steps, 'learning_steps', learn_iters)
     x = [i + 1 for i in range(len(score_history))]
@@ -153,7 +174,7 @@ def loadAndRunPpoAgent(seed=0, amountOfNodes=10, amountOfEdges=15, hubsAmount=2,
             best_score = avg_score
             agent.save_models()
 
-        print('episode', i, 'score %.1f' % score, 'Relative score', 1000 * (score + totalTicks / 1000) / totalTicks,
+        print('episode', i, 'score %.1f' % score, 'Relative score', 1000 * score / totalTicks,
               'avg score %.1f' % avg_score,
               'time_steps', n_steps, 'learning_steps', learn_iters)
     x = [i + 1 for i in range(len(score_history))]
@@ -240,4 +261,4 @@ def testLoadedAgent(seed=0, amountOfNodes=10, amountOfEdges=15, hubsAmount=2, co
             if n_steps % numberOfSteps == 0:
                 done = True
 
-        print('episode', i, 'score %.1f' % score, 'Relative score', 1000 * (score + totalTicks / 1000) / totalTicks)
+        print('episode', i, 'score %.1f' % score, 'Relative score', 1000 * score / totalTicks)

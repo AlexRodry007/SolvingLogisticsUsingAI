@@ -30,37 +30,59 @@ class Hivemind:
     def directMoveToTarget(self, courier):
         # print(courier.courierAi.currentNode, courier.courierAi.currentTargetNode)
         if courier.courierAi.currentNode != courier.courierAi.currentTargetNode:
+            ticksToReachTarget = self.fieldVisualiser.field.map[courier.courierAi.currentNode][
+                        courier.courierAi.currentTargetNode]['weight']
+            courier.punishment+=(ticksToReachTarget+1)*0.0001
             if courier.courierMovement.animated:
                 courier.courierMovement.startMovementToCoord(
                     self.fieldVisualiser.pos[courier.courierAi.currentTargetNode][0],
                     self.fieldVisualiser.pos[courier.courierAi.currentTargetNode][1],
-                    self.fieldVisualiser.field.map[courier.courierAi.currentNode][
-                        courier.courierAi.currentTargetNode]
-                    ['weight'])
+                    ticksToReachTarget)
             else:
                 courier.courierMovement.startMovementToCoord(
-                    ticksToReachTarget=self.fieldVisualiser.field.map[courier.courierAi.currentNode][
-                        courier.courierAi.currentTargetNode]
-                    ['weight'])
+                    ticksToReachTarget=ticksToReachTarget)
 
     def provideService(self, courier):
+        # Створюємо лист вузлів з активними запитами
         nodesContainingRequests = [activeRequest.node for activeRequest in
                                    self.fieldVisualiser.activeRequests]
+
+        # Перевіряємо чи знаходиться кур'єр на вузлі з запитом
         onTheRequest = courier.courierAi.currentNode in nodesContainingRequests
         providedService = -1
+
+        # Якщо кур'єр знаходиться на вузлі з запитом
         if onTheRequest:
+            # Беремо запит на якому знаходиться кур'єр
             request = self.fieldVisualiser.activeRequests[
                 nodesContainingRequests.index(courier.courierAi.currentNode)]
+
+            # Намагаємося доставити товар, якщо він не підходить, отримуємо -1
             providedService = request.receiveService(courier.carryingService)
+
+            # Якщо товар доставлено
             if providedService != -1:
+                # Перевіряємо чи видаляє кур'єр запити власноруч
                 if courier.oneStepBehind:
-                    request.delayedDeletion=True
+                    # Якщо так - відмічаємо запит для видалення
+                    request.delayedDeletion=courier.id
                 else:
-                    request.deleteRequest()
+                    # Якщо ні - одразу видаляємо запит
+                    self.fieldVisualiser.deleteRequest(request)
+
+                # Прибираємо товар з кур'єра
                 courier.carryingService = None
+
+                # Подаємо команду що запит виконано
                 self.fieldVisualiser.receiveRequest(request)
+
+                # Даємо кур'єру нагороду
+                courier.reward+=1
+
+                # Затримуємо кур'єра на небхідну кількість митей
                 courier.courierAi.freeze += providedService
-                # print(courier.courierAi.currentNode, courier.courierAi.finalTargetNode)
+
+        # Повертаємо успішність доставки
         return providedService != -1
 
     def getService(self, courier, service):
@@ -145,33 +167,27 @@ class Hivemind:
             self.moveToFinalNode(courier)
 
     def aiHivemind(self, courier, action):
-        # print(courier.carryingService, courier.noPathAndMovement())
         if type(action) is tuple:
             action = action[0]
         if courier.carryingService is None and courier.noPathAndMovement():
-            # self.getService(courier, "Test")
             courier.courierAi.finalTargetNode = action
-            # self.moveToFinalNode(courier)
             return False
         elif courier.carryingService is not None and courier.noPathAndMovement():
-            # self.provideService(courier)
             courier.courierAi.finalTargetNode = action
-            # self.moveToFinalNode(courier)
             return False
         else:
-            # self.moveToFinalNode(courier)
             pass
         return True
 
     def provideOrGetService(self, courier):
-        # print(courier.carryingService, courier.noPathAndMovement())
         if courier.carryingService is None and courier.noPathAndMovement():
-            # print("getting service")
+            courier.courierAi.finalTargetNode = None
             gotService = self.getService(courier, "Test")
             if gotService and hasattr(self.fieldVisualiser, 'totalVisitedHubs'):
                 self.fieldVisualiser.totalVisitedHubs += 1
+                courier.reward +=1
         elif courier.carryingService is not None and courier.noPathAndMovement():
-            # print("providing service")
+            courier.courierAi.finalTargetNode = None
             self.provideService(courier)
 
     @staticmethod

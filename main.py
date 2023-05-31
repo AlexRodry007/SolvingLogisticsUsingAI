@@ -30,7 +30,8 @@ if __name__ == '__main__':
     # 3 vertexes
     # BuildAndTest.runComplexAnalyticalAgent(amountOfNodes=3, amountOfEdges=2, couriersAmount=1, hubsAmount=1)
     # 10 vertexes
-    # BuildAndTest.runComplexAnalyticalAgent(seed=3, addCarryingBit=True, outOf=1500)
+    for _ in range(10):
+        BuildAndTest.runComplexAnalyticalAgent(seed=3, addCarryingBit=True, outOf=1500)
     # 100 vertexes
     # BuildAndTest.runComplexAnalyticalAgent(amountOfNodes=100, amountOfEdges=150, hubsAmount=20,
     #                                        couriersAmount=20, totalSteps=160000)
@@ -42,7 +43,7 @@ if __name__ == '__main__':
     # BuildAndTest.runPpoAgent(amountOfNodes=10, amountOfEdges=15, couriersAmount=2, hubsAmount=2,
     #                          actor_fc1=2048, actor_fc2=2048, critic_fc1=2048, critic_fc2=2048,
     #                          N=16, batchSize=40, numberOfSteps=2400, addCarryingBit=True, seed=3,
-    #                          checkpointDir='tmp/ppo', numberOfGames=1000, outOf=1500, alpha=0.00003,
+    #                          checkpointDir='tmp/ppo', numberOfGames=1000, outOf=1500, alpha=0.00006,
     #                          entropyRegularizationMagnitude=0.02, oneStepBehind=True)
 
     # 100 vertexes
@@ -54,16 +55,26 @@ if __name__ == '__main__':
     # BuildAndTest.loadAndRunPpoAgent(amountOfNodes=10, amountOfEdges=15, couriersAmount=2, hubsAmount=2,
     #                                 actor_fc1=2048, actor_fc2=2048, critic_fc1=2048, critic_fc2=2048,
     #                                 N=16, batchSize=40, numberOfSteps=2400, addCarryingBit=True, seed=3,
-    #                                 checkpointDir='tmp/ppo', numberOfGames=1000, outOf=1500, alpha=0.00003)
+    #                                 checkpointDir='tmp/ppo', numberOfGames=1000, outOf=1500, alpha=0.00006,
+    #                                 entropyRegularizationMagnitude=0.02, oneStepBehind=True)
 
     # Complex analytical visualised
-    BuildAndTest.visualiseComplexAnalytical(seed=3,  amountOfNodes=10, amountOfEdges=15, hubsAmount=2, couriersAmount=2,
-                                            addCarryingBit=True, oneStepBehind=True)
+    # BuildAndTest.visualiseComplexAnalytical(seed=3,  amountOfNodes=10, amountOfEdges=15, hubsAmount=2, couriersAmount=2,
+    #                                         addCarryingBit=True, oneStepBehind=False)
 
     # Load and test agent
-    # BuildAndTest.testLoadedAgent(loadFrom='perm/thirdSave', addCarryingBit=True, outOf=1500, critic_fc1=256, critic_fc2=256)
+    # BuildAndTest.testLoadedAgent(amountOfNodes=10, amountOfEdges=15, couriersAmount=2, hubsAmount=2,
+    #                              actor_fc1=2048, actor_fc2=2048, critic_fc1=2048, critic_fc2=2048,
+    #                              numberOfSteps=2400, addCarryingBit=True, seed=3,
+    #                              loadFrom='tmp/ppo', outOf=1500, oneStepBehind=True)
+    #
+    # BuildAndTest.testLoadedAgent(amountOfNodes=10, amountOfEdges=15, couriersAmount=2, hubsAmount=2,
+    #                              actor_fc1=2048, actor_fc2=2048, critic_fc1=2048, critic_fc2=2048,
+    #                              numberOfSteps=2400, addCarryingBit=True, seed=3,
+    #                              loadFrom='perm/10NodesRight', outOf=1500, oneStepBehind=True)
 
     # Visualise agent
-    # BuildAndTest.visualiseLoadedAgent(amountOfNodes=10, amountOfEdges=15, couriersAmount=2, hubsAmount=2, loadFrom='tmp/ppo',
+    # BuildAndTest.visualiseLoadedAgent(amountOfNodes=10, amountOfEdges=15, couriersAmount=2, hubsAmount=2,
     #                                   actor_fc1=2048, actor_fc2=2048, critic_fc1=2048, critic_fc2=2048,
-    #                                   addCarryingBit=True, seed=3, outOf=1500)
+    #                                   addCarryingBit=True, seed=3, loadFrom='tmp/ppo',
+    #                                   outOf=1500, oneStepBehind=True)
